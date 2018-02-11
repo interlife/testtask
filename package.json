@@ -2,13 +2,19 @@
   "name": "testtask",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app/app.js",
   "scripts": {
+    "start": "nodemon -e css,ejs,js,json --watch app",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vladimir Sukhov",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.16.2"
+    "express": "^4.16.2",
+    "knex": "^0.14.3",
+    "mysql": "^2.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.14.12"
   }
 }
