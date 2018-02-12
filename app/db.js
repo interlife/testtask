@@ -60,7 +60,7 @@ exports.fetchQuantity = function () {
 }
 
 exports.deletePercent = function (percent) {
-    knex.transaction(function(trx) {
+    return knex.transaction(function(trx) {
         exports.getEventQuantity(trx)
             .then(function (res) {
                 var quantityForDelete = Math.round(percent/100 * res.length);
@@ -68,11 +68,18 @@ exports.deletePercent = function (percent) {
                 getEventForDelete(trx, quantityForDelete)
                     .then(function(rows){
                         return Promise.map(rows, function(row) {
-                            return trx.from('event').where('id', row.id).del().then(function(res){
-                                console.log('Record deleted');
-                            },
-                            err => console.log(err))
-                          });
+                            return trx.from('score')
+                                .where('event_id', row.id)
+                                .del()
+                                .then(function(res) {
+                                    return trx.from('event').where('id', row.id).del()
+                                        .then(function(res){
+                                            console.log('Record deleted');
+                                        },
+                                        err => console.log(err))
+                                });
+                        });
+                        
                     })
                     .then(trx.commit)
                     .catch(function(e){

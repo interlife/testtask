@@ -37,6 +37,14 @@ app.get('/events/max_page', function (req, res) {
     );
 });
 
+app.get('/events/saved', function (req, res) {
+    dbh.getEventQuantity(null).then(function(result) {
+        res.send(result.length.toString())
+    },
+    err => console.log(err)
+    );
+});
+
 app.get('/events/:page', function (req, res) {
     var page = parseInt(req.params.page, 10);
     dbh.fetchPage(page_size, page_size*page).then(function(result) { 
@@ -80,8 +88,14 @@ app.delete('/events/:percent', function (req, res) {
         res.status(500);
         res.send('Bad percent parameter');
     }
-    dbh.deletePercent(req.params.percent);
-    
+    dbh.deletePercent(req.params.percent).then(
+        function(res) {
+            console.log('Delete trx success')
+        },
+        function(err) {
+            console.log(err)
+        } 
+    );
 });
 
 app.listen(8080, () => console.log('listening on port 8080'))

@@ -34,6 +34,12 @@ $(document).ready(function() {
         fillEvents();
     }
 
+    var refreshDataSaved = function() {
+        $.get('/events/saved', function(data) {
+            $('#data-saved').text(data);
+        });
+    }
+
     $('#refresh').click(function() {
         $.get('/events/max_page', function(data) {
             if(current_page > data) {
@@ -42,6 +48,7 @@ $(document).ready(function() {
                 fillEvents();
             }
         });
+        refreshDataSaved();
     });
 
     $('#left-page').click(function() {
@@ -79,4 +86,5 @@ $(document).ready(function() {
     });
 
     fillEvents();
+    refreshDataSaved();
 });
