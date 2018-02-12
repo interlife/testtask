@@ -2,17 +2,24 @@
     <head>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-animateNumber/0.0.14/jquery.animateNumber.js"></script>
         <script src="/static/js/dataHandling.js"></script>
         <title>
             Test task
         </title>
     </head>
     <body>
-        <input type="button" value="Load data" id="load-data" /><span id="progress"></span><span id="error-load"></span>
+        <input type="button" value="Load data" id="load-data" /><span id="progress"></span><span>%</span><span id="error-load"></span>
         <br />
         <input type="text" id="percent" />% <input type="button" value="Delete some data" id="delete-rand" />
+        <br />
+        <input type="button" id="refresh" value="Refresh" />
         <table id="event-list">
             
         </table>
+        <br />
+        <span><b><a href="#" id="left-page" style="margin-right:20px"><</a></b></span>
+        <span id="current-page">0</span>
+        <span style="margin-left:20px"><b><a href="#" id="right-page">></a></b></span>
     </body>
 </html>

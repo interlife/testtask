@@ -4,16 +4,16 @@ var fs = require('fs');
 var counter = 0;
 
 //todo: delay после лимита
-exports.readFromFile = function (filePath, processOneCb, completeCb, onProgress, limit=10) {
+exports.readFromFile = function (filePath, processOneCb, completeCb, onProgress) {
     
     var stat = fs.statSync(filePath);
     var jsonSize = stat.size;
     var uploadedSize = 0;
     var stream = JSONStream.parse('*');
     stream.on('data', function(buffer) {
-        var segmentLength   = JSON.stringify(buffer).length;
-        uploadedSize        += segmentLength;
-        onProgress((uploadedSize/jsonSize*100).toFixed(2)+"%");
+        var segmentLength = JSON.stringify(buffer).length;
+        uploadedSize += segmentLength;
+        onProgress(Math.ceil(uploadedSize/jsonSize*100));
     });
 
     var fileStream = fs.createReadStream(filePath, {encoding: 'utf8', flags: 'r'});
@@ -25,9 +25,9 @@ exports.readFromFile = function (filePath, processOneCb, completeCb, onProgress,
                 this.pause();
                 processOneCb(data, this.resume, counter);
                 return data;
-            },function end () {
+            }, function end() {
                 console.log('stream reading ended');
-                onProgress("100%");
+                onProgress('100');
                 completeCb();
                 this.emit('end');
             }));

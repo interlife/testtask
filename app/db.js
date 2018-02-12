@@ -25,10 +25,15 @@ var checkExistance = function(id, table) {
     return knex(table).select('id').where('id', id);
 }
 
-var getEventQuantity = function (trx) {
-    return knex('event').select('id')
-                        .transacting(trx)
-                        .forShare();
+exports.getEventQuantity = function (trx) {
+    if(trx) {
+        return knex('event').select('id')
+                            .transacting(trx)
+                            .forShare();
+    } else {
+        return knex('event').select('id')
+    }
+    
 }
 
 var getEventForDelete = function (trx, limit) {
@@ -39,13 +44,15 @@ var getEventForDelete = function (trx, limit) {
                         .forUpdate();
 }
 
-exports.fetchAll = function () {
+exports.fetchPage = function (limit, offset) {
     return knex('event').select('date_event', 'event.id as main_id', 
                                 knex.raw('GROUP_CONCAT(team.name ORDER BY team.id SEPARATOR \' - \') names'),
                                 knex.raw('GROUP_CONCAT(score.score ORDER BY score.team_id SEPARATOR \':\') scores'))
                         .rightJoin('score', 'event.id', 'score.event_id')
                         .innerJoin('team', 'score.team_id', 'team.id')
                         .groupBy('main_id')
+                        .limit(limit)
+                        .offset(offset)
 }
 
 exports.fetchQuantity = function () {
@@ -54,7 +61,7 @@ exports.fetchQuantity = function () {
 
 exports.deletePercent = function (percent) {
     knex.transaction(function(trx) {
-        getEventQuantity(trx)
+        exports.getEventQuantity(trx)
             .then(function (res) {
                 var quantityForDelete = Math.round(percent/100 * res.length);
                 console.log(quantityForDelete);
@@ -62,6 +69,7 @@ exports.deletePercent = function (percent) {
                     .then(function(rows){
                         return Promise.map(rows, function(row) {
                             return trx.from('event').where('id', row.id).del().then(function(res){
+                                console.log('Record deleted');
                             },
                             err => console.log(err))
                           });
@@ -101,7 +109,7 @@ exports.insertEvent = function (event) {
                     return checkExistance(team.id, 'team').transacting(trx).then(function(res) {
                         if(typeof res !== 'undefined' && res.length > 0) {
                             console.log('Skips team #' + team.id);
-                            throw Error('Team #' + team.id +' already exist')
+                            return false;
                         }
                         return trx.insert(team).into('team').then(function(res) {
                             console.log('Successful inserting team #' + team.id + ' ' + team.name)
