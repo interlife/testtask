@@ -55,13 +55,14 @@ app.post('/events', function (req, res) {
     import_active = 1;
     json_handler.readFromFile(  __dirname + json_path, 
                                 function(data, resume, counter) {
-                                    dbh.insertEvent(data);
-                                    if(counter % 10 === 0) {
-                                        console.log('Throttling');
-                                        setTimeout(() => resume(), 1000)
-                                    } else {
-                                        resume();
-                                    }
+                                    dbh.insertEvent(data).then(function(res){
+                                        if(counter % 10 === 0) {
+                                            console.log('Throttling');
+                                            setTimeout(() => resume(), 1000)
+                                        } else {
+                                            resume();
+                                        }
+                                    }, (err) => resume());
                                 },
                                 function() {
                                     import_active = 0;

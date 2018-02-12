@@ -31,22 +31,22 @@ $(document).ready(function() {
     var setPage = function(number) {
         current_page = number;
         $('#current-page').text(current_page);
+        fillEvents();
     }
 
     $('#refresh').click(function() {
         $.get('/events/max_page', function(data) {
             if(current_page > data) {
-                setPage(data);
+                setPage(parseInt(data));
+            } else {
                 fillEvents();
             }
         });
-        fillEvents();
     });
 
     $('#left-page').click(function() {
         if(current_page > 0) {
             setPage(current_page-1);
-            fillEvents();
         }
     });
 
@@ -54,11 +54,9 @@ $(document).ready(function() {
         $.get('/events/max_page', function(data) {
             if(current_page < data) {
                 setPage(current_page+1);
-                fillEvents();
             } else {
                 if(current_page > data) {
-                    setPage(data);
-                    fillEvents();
+                    setPage(parseInt(data));
                 }
             }
         });

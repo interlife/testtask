@@ -91,7 +91,7 @@ exports.deletePercent = function (percent) {
 exports.insertEvent = function (event) {
     var prepared = prepareEventData(event);
     console.log(prepared.event.id);
-    knex.transaction(function(trx) {
+    return knex.transaction(function(trx) {
         checkExistance(prepared.event.id, 'event')
             .then(function(res) {
                 console.log(res);
