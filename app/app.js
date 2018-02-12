@@ -3,7 +3,7 @@ const app = express();
 const dbh = require('./db.js');
 const json_handler = require('./json_handler.js');
 const index_path = '/public/html/index.html';
-const json_path = '/data/events.json';
+const json_path = '/data/events.json.gz';
 var io = require('socket.io').listen('8081');
 var import_active = 0;
 var page_size = 20;
@@ -62,15 +62,9 @@ app.post('/events', function (req, res) {
     }
     import_active = 1;
     json_handler.readFromFile(  __dirname + json_path, 
-                                function(data, resume, counter) {
-                                    dbh.insertEvent(data).then(function(res){
-                                        if(counter % 10 === 0) {
-                                            console.log('Throttling');
-                                            setTimeout(() => resume(), 1000)
-                                        } else {
-                                            resume();
-                                        }
-                                    }, (err) => resume());
+                                async function (data, resume) {
+                                    await dbh.insertEventPackage(data);
+                                    setTimeout(() => resume(), 1000);
                                 },
                                 function() {
                                     import_active = 0;

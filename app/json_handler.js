@@ -1,13 +1,20 @@
 var JSONStream = require('JSONStream');
 var es = require('event-stream');
 var fs = require('fs');
+var zlib = require('zlib');
+var gzipUncompressedSize = require('gzip-uncompressed-size');
 var counter = 0;
 
-//todo: delay после лимита
-exports.readFromFile = function (filePath, processOneCb, completeCb, onProgress) {
+exports.readFromFile = function (filePath, processPackCb, completeCb, onProgress, limit=10) {
+    var jsonSize = 0;
+    var package = [];
+    gzipUncompressedSize.fromFile(filePath, (error, uncompressedSize) => {
+        if (error) {
+          throw error;
+        }
+        jsonSize = uncompressedSize;
+      });
     
-    var stat = fs.statSync(filePath);
-    var jsonSize = stat.size;
     var uploadedSize = 0;
     var stream = JSONStream.parse('*');
     stream.on('data', function(buffer) {
@@ -16,14 +23,19 @@ exports.readFromFile = function (filePath, processOneCb, completeCb, onProgress)
         onProgress(Math.ceil(uploadedSize/jsonSize*100));
     });
 
-    var fileStream = fs.createReadStream(filePath, {encoding: 'utf8', flags: 'r'});
+    var fileStream = fs.createReadStream(filePath);
     fileStream
+            .pipe(zlib.createGunzip())
             .pipe(stream)
             .pipe(es.through(function (data) {
                 counter ++;
                 console.log('get event');
-                this.pause();
-                processOneCb(data, this.resume, counter);
+                package.push(data);
+                if(counter % limit == 0) {
+                    this.pause();
+                    processPackCb(package, this.resume);
+                    package = [];
+                }
                 return data;
             }, function end() {
                 console.log('stream reading ended');

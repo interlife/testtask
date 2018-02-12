@@ -21,6 +21,19 @@ var prepareEventData = function (event) {
     return {"event": event_record, "teams": event.teams, "scores": score_records};
 }
 
+var prepareEventPackageData = function (package) {
+    var result = {'events': [], 'teams':[], 'scores': []};
+    package.forEach(function (row) {
+        result.events.push({'id': row.id, 
+            'date_event': new Date(row.date).toISOString().slice(0, 19).replace('T', ' ')});
+        result.teams.push(row.teams);
+        var scores = row.scores.split(":");
+        result.scores.push({"event_id": row.id, "team_id": row.teams[0].id, "score": scores[0]});
+        result.scores.push({"event_id": row.id, "team_id": row.teams[1].id, "score": scores[1]});
+    })
+    return result;
+}
+
 var checkExistance = function(id, table) {
     return knex(table).select('id').where('id', id);
 }
@@ -95,49 +108,24 @@ exports.deletePercent = function (percent) {
       });
 };
 
-exports.insertEvent = function (event) {
-    var prepared = prepareEventData(event);
-    console.log(prepared.event.id);
-    return knex.transaction(function(trx) {
-        checkExistance(prepared.event.id, 'event')
-            .then(function(res) {
-                console.log(res);
-                if(typeof res !== 'undefined' && res.length > 0) {
-                    console.log('Skips event #' + event.id);
-                    throw Error('Event #' + event.id +' already exist')
-                }
-            
-                return knex.insert(prepared.event)
-                    .into('event')
-                    .transacting(trx)
-            })
-            .then(function(res) {
-                return Promise.map(prepared.teams, function(team){
-                    return checkExistance(team.id, 'team').transacting(trx).then(function(res) {
-                        if(typeof res !== 'undefined' && res.length > 0) {
-                            console.log('Skips team #' + team.id);
-                            return false;
-                        }
-                        return trx.insert(team).into('team').then(function(res) {
-                            console.log('Successful inserting team #' + team.id + ' ' + team.name)
-                        },
-                        err => console.log(err)
-                        )
-                    });
-                });
-            })
-            .then(function(res){
-                var promises = [];
-                prepared.scores.forEach(score => {
-                    promises.push(trx.insert(score).into('score').then(function(res) {
-                        console.log('Successful inserting score for event #' + score.event_id + ' ' + score.team_id)
-                    },
-                    err => console.log(err)
-                    ));
-                });
-                return Promise.all(promises);
-            })
-            .then(trx.commit)
-            .catch(trx.rollback);
-        });
+exports.insertEventPackage = function (package) {
+    var prepared = prepareEventPackageData(package);
+    return knex.transaction(async function (trx) 
+    {
+        try {
+            let inserted_teams = await Promise.map(prepared.teams, function(team){
+                return trx.raw(knex('team').insert(team).toString().replace('insert', 'INSERT IGNORE'));
+            });
+            let inserted_events = await Promise.map(prepared.events, function(event){
+                return trx.raw(knex('event').insert(event).toString().replace('insert', 'INSERT IGNORE'));
+            });
+            let inserted_scores = await Promise.map(prepared.scores, function(score){
+                return trx.raw(knex('score').insert(score).toString().replace('insert', 'INSERT IGNORE'));
+            });
+        } catch (err) {
+            trx.rollback();
+            console.log(err);
+            throw err;
+        }
+    });
 }
