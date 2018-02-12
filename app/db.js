@@ -5,9 +5,9 @@ var knex = require('knex')({
  //   debug: true,
     connection: {
       host : 'localhost',
-      user : 'neotech',
-      password : 'neotech',
-      database : 'neotech'
+      user : 'neotech2',
+      password : 'neotech2',
+      database : 'neotech2'
     }
 });
 
