@@ -1,15 +1,16 @@
 <html>
     <head>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
         <script src="/static/js/dataHandling.js"></script>
         <title>
             Test task
         </title>
     </head>
     <body>
-        <input type="button" value="Load data" id="load-data" />
+        <input type="button" value="Load data" id="load-data" /><span id="progress"></span><span id="error-load"></span>
         <br />
-        <input type="text" />% <input type="button" value="Delete some data" />
+        <input type="text" id="percent" />% <input type="button" value="Delete some data" id="delete-rand" />
         <table id="event-list">
             
         </table>

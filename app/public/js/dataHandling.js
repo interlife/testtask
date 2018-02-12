@@ -1,4 +1,15 @@
 $(document).ready(function() {
+    var socket = io.connect('http://localhost:8081');
+    var field = $('#progress');
+
+    socket.on('message', function (data) {
+        if(data) {
+            field.text(data);
+        } else {
+            console.log("There is a problem:", data);
+        }
+    });
+
     $.get("/events", function(data) {
         var trHtml = "";
         data = JSON.parse(data);
@@ -8,8 +19,17 @@ $(document).ready(function() {
         $("#event-list").append(trHtml);
     });
     $("#load-data").click(function() {
-        $.post("/events", function(data) {
-            
+        $.post("/events").fail(function(data) {
+            $("#error-load").text(data.responseText);
+        });
+    });
+    $("#delete-rand").click(function() {
+        $.ajax({
+            url: '/events/' + $('#percent').val(),
+            type: 'DELETE',
+            success: function(result) {
+                console.log(result);
+            }
         });
     });
 });

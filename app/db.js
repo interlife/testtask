@@ -1,5 +1,8 @@
+var Promise = require('bluebird');
+
 var knex = require('knex')({
     client: 'mysql',
+ //   debug: true,
     connection: {
       host : 'localhost',
       user : 'neotech',
@@ -15,8 +18,25 @@ var prepareEventData = function (event) {
     var score_records = [];
     score_records[0] = {"event_id": event.id, "team_id": event.teams[0].id, "score": scores[0]};
     score_records[1] = {"event_id": event.id, "team_id": event.teams[1].id, "score": scores[1]};
-    console.log(event.teams);
     return {"event": event_record, "teams": event.teams, "scores": score_records};
+}
+
+var checkExistance = function(id, table) {
+    return knex(table).select('id').where('id', id);
+}
+
+var getEventQuantity = function (trx) {
+    return knex('event').select('id')
+                        .transacting(trx)
+                        .forShare();
+}
+
+var getEventForDelete = function (trx, limit) {
+    return knex('event').select('id')
+                        .transacting(trx)
+                        .orderByRaw('RAND()')
+                        .limit(limit)
+                        .forUpdate();
 }
 
 exports.fetchAll = function () {
@@ -27,31 +47,82 @@ exports.fetchAll = function () {
                         .innerJoin('team', 'score.team_id', 'team.id')
                         .groupBy('main_id')
 }
-//todo: проверка на дублирование
+
+exports.fetchQuantity = function () {
+    return knex('event').select('id')
+}
+
+exports.deletePercent = function (percent) {
+    knex.transaction(function(trx) {
+        getEventQuantity(trx)
+            .then(function (res) {
+                var quantityForDelete = Math.round(percent/100 * res.length);
+                console.log(quantityForDelete);
+                getEventForDelete(trx, quantityForDelete)
+                    .then(function(rows){
+                        return Promise.map(rows, function(row) {
+                            return trx.from('event').where('id', row.id).del().then(function(res){
+                            },
+                            err => console.log(err))
+                          });
+                    })
+                    .then(trx.commit)
+                    .catch(function(e){
+                        console.log(e);
+                        trx.rollback();
+                    });
+            });
+    }).then(function(inserts) {
+        console.log('success');
+      })
+      .catch(function(error) {
+        console.error(error);
+      });
+};
+
 exports.insertEvent = function (event) {
     var prepared = prepareEventData(event);
-    knex('event').insert(prepared.event).then(
-        function(res) {
-            console.log('Successful inserting event #' + prepared.event.id)
-        },
-        err => console.log(err)
-    )
-
-    prepared.teams.forEach(team => {
-        knex('team').insert(team).then(
-            function(res) {
-                console.log('Successful inserting team #' + team.id + ' ' + team.name)
-            },
-            err => console.log(err)
-        )
-    });
-
-    prepared.scores.forEach(score => {
-        knex('score').insert(score).then(
-            function(res) {
-                console.log('Successful inserting score for event #' + score.event_id + ' ' + score.event_team)
-            },
-            err => console.log(err)
-        )
-    });
+    console.log(prepared.event.id);
+    knex.transaction(function(trx) {
+        checkExistance(prepared.event.id, 'event')
+            .then(function(res) {
+                console.log(res);
+                if(typeof res !== 'undefined' && res.length > 0) {
+                    console.log('Skips event #' + event.id);
+                    throw Error('Event #' + event.id +' already exist')
+                }
+            
+                return knex.insert(prepared.event)
+                    .into('event')
+                    .transacting(trx)
+            })
+            .then(function(res) {
+                return Promise.map(prepared.teams, function(team){
+                    return checkExistance(team.id, 'team').transacting(trx).then(function(res) {
+                        if(typeof res !== 'undefined' && res.length > 0) {
+                            console.log('Skips team #' + team.id);
+                            throw Error('Team #' + team.id +' already exist')
+                        }
+                        return trx.insert(team).into('team').then(function(res) {
+                            console.log('Successful inserting team #' + team.id + ' ' + team.name)
+                        },
+                        err => console.log(err)
+                        )
+                    });
+                });
+            })
+            .then(function(res){
+                var promises = [];
+                prepared.scores.forEach(score => {
+                    promises.push(trx.insert(score).into('score').then(function(res) {
+                        console.log('Successful inserting score for event #' + score.event_id + ' ' + score.team_id)
+                    },
+                    err => console.log(err)
+                    ));
+                });
+                return Promise.all(promises);
+            })
+            .then(trx.commit)
+            .catch(trx.rollback);
+        });
 }
