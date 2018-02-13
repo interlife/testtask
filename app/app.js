@@ -1,14 +1,13 @@
 const express = require('express');
 const app = express();
 const dbh = require('./db.js');
+const fetch_cache = require('./fetch_cache');
 const json_handler = require('./json_handler.js');
 const index_path = '/public/html/index.html';
 const json_path = '/data/events.json.gz';
 var io = require('socket.io').listen('8081');
 var import_active = 0;
 var page_size = 20;
-
-Date.prototype.toJSON = function(){ return this.toISOString().slice(0, 19).replace('T', ' ') }
 
 app.use('/static', express.static(__dirname + '/public'))
 
@@ -22,36 +21,28 @@ io.sockets.on('connection', function (socket) {
 app.get('/', (req, res) => res.sendFile(__dirname + index_path))
 
 app.get('/events', function (req, res) {
-    dbh.fetchPage(page_size, 0).then(function(result) { 
-        res.send(JSON.stringify(result))
-    },
-    err => console.log(err)
-    );
+    fetch_cache.fetchPageCached(page_size, 0, (result) => {
+        res.send(result)
+    });
 });
 
 app.get('/events/max_page', function (req, res) {
-    dbh.getEventQuantity(null).then(function(result) {
-        res.send(Math.floor(result.length/page_size).toString())
-    },
-    err => console.log(err)
-    );
+    fetch_cache.getEventQuantity(function(result) {
+        res.send(Math.floor(result/page_size).toString())
+    });
 });
 
 app.get('/events/saved', function (req, res) {
-    dbh.getEventQuantity(null).then(function(result) {
-        res.send(result.length.toString())
-    },
-    err => console.log(err)
-    );
+    fetch_cache.getEventQuantity(function(result) {
+        res.send(result.toString())
+    });
 });
 
 app.get('/events/:page', function (req, res) {
     var page = parseInt(req.params.page, 10);
-    dbh.fetchPage(page_size, page_size*page).then(function(result) { 
-        res.send(JSON.stringify(result))
-    },
-    err => console.log(err)
-    );
+    fetch_cache.fetchPageCached(page_size, page_size*page, (result) => {
+        res.send(result)
+    });
 });
 
 app.post('/events', function (req, res) {

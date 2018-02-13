@@ -11,16 +11,6 @@ var knex = require('knex')({
     }
 });
 
-var prepareEventData = function (event) {
-    var event_record = {"id": event.id, 
-        "date_event": new Date(event.date).toISOString().slice(0, 19).replace('T', ' ')};
-    var scores = event.scores.split(":");
-    var score_records = [];
-    score_records[0] = {"event_id": event.id, "team_id": event.teams[0].id, "score": scores[0]};
-    score_records[1] = {"event_id": event.id, "team_id": event.teams[1].id, "score": scores[1]};
-    return {"event": event_record, "teams": event.teams, "scores": score_records};
-}
-
 var prepareEventPackageData = function (package) {
     var result = {'events': [], 'teams':[], 'scores': []};
     package.forEach(function (row) {
@@ -32,10 +22,6 @@ var prepareEventPackageData = function (package) {
         result.scores.push({"event_id": row.id, "team_id": row.teams[1].id, "score": scores[1]});
     })
     return result;
-}
-
-var checkExistance = function(id, table) {
-    return knex(table).select('id').where('id', id);
 }
 
 exports.getEventQuantity = function (trx) {
@@ -73,39 +59,21 @@ exports.fetchQuantity = function () {
 }
 
 exports.deletePercent = function (percent) {
-    return knex.transaction(function(trx) {
-        exports.getEventQuantity(trx)
-            .then(function (res) {
-                var quantityForDelete = Math.round(percent/100 * res.length);
-                console.log(quantityForDelete);
-                getEventForDelete(trx, quantityForDelete)
-                    .then(function(rows){
-                        return Promise.map(rows, function(row) {
-                            return trx.from('score')
-                                .where('event_id', row.id)
-                                .del()
-                                .then(function(res) {
-                                    return trx.from('event').where('id', row.id).del()
-                                        .then(function(res){
-                                            console.log('Record deleted');
-                                        },
-                                        err => console.log(err))
-                                });
-                        });
-                        
-                    })
-                    .then(trx.commit)
-                    .catch(function(e){
-                        console.log(e);
-                        trx.rollback();
-                    });
+    return knex.transaction(async function(trx) {
+        try {
+            let all_events = await exports.getEventQuantity(trx);
+            var quantity_delete = Math.round(percent/100 * all_events.length);
+            let marked_rows = await getEventForDelete(trx, quantity_delete);
+            await Promise.map(marked_rows, async function(row) {
+                await trx.from('score').where('event_id', row.id).del();
+                await trx.from('event').where('id', row.id).del()
             });
-    }).then(function(inserts) {
-        console.log('success');
-      })
-      .catch(function(error) {
-        console.error(error);
-      });
+        } catch (err) {
+            trx.rollback();
+            console.log(err);
+            throw err;
+        }
+    });
 };
 
 exports.insertEventPackage = function (package) {

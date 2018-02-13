@@ -16,13 +16,12 @@ $(document).ready(function() {
     });
 
     var fillEvents = function() {
-        $.get('/events/' + current_page, function(data) {
+        $.getJSON('/events/' + current_page, function(data) {
             $('#event-list tr').remove();
             var trHtml = '';
-            data = JSON.parse(data);
             $.each(data, function(iter, item) {
                 trHtml += '<tr><td>' + item.names + '</td><td>('
-                + item.scores + ')</td><td>' + item.date_event + '</td></tr>';
+                + item.scores + ')</td><td>' + new Date(item.date_event).toISOString().slice(0, 19).replace('T', ' ') + '</td></tr>';
             });
             $('#event-list').append(trHtml);
         });
